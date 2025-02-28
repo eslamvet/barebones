@@ -16,7 +16,7 @@ export default function App() {
           name="SingleProfile" 
           component={SingleProfileScreen}
           options={{ title: 'Pet Profile' }}
-          initialParams={{ id: '1' }}
+          initialParams={{ id: '0b0ee55d-745c-4c84-a50f-2096ebd94623' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

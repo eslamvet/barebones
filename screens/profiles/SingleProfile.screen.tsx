@@ -8,6 +8,11 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pet, BodyConditionLog, WeightLog } from '../../types';
+import { supabase } from '@/utils/supabase';
+import CustomTab from './CustomTab';
+import WeightLogs from './WeightLogs';
+import BodyCondition from './BodyCondition';
+import VetVisits from './VetVisits';
 
 type RootStackParamList = {
   SingleProfile: { id: string };
@@ -15,25 +20,6 @@ type RootStackParamList = {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SingleProfile'>;
 
-// Mock data for development
-const mockPet: Pet = {
-  id: '1',
-  name: 'Max',
-  species: 'Dog',
-  breed: 'Golden Retriever',
-  age: 3,
-  created_at: new Date().toISOString(),
-  owner_id: '123',
-  logs_weight: [
-    { id: '1', pet_id: '1', weight: 25.5, date: '2024-02-25T10:00:00Z' },
-    { id: '2', pet_id: '1', weight: 26.0, date: '2024-01-25T10:00:00Z' },
-  ],
-  logs_bodycondition: [
-    { id: '1', pet_id: '1', body_condition: "3", date: '2024-02-25T10:00:00Z' },
-    { id: '2', pet_id: '1', body_condition: "4", date: '2024-01-25T10:00:00Z' },
-  ],
-  logs_vet_visits: [],
-};
 
 function getThisMonthLogs(logs_bodycondition: BodyConditionLog[], logs_weight: WeightLog[]) {
   const currentMonth = new Date().getMonth();
@@ -66,24 +52,6 @@ const PetCard = ({ pet }: { pet: Pet }) => (
   </View>
 );
 
-const LogsTable = ({ 
-  weightLogs, 
-  bodyConditionLogs 
-}: { 
-  weightLogs: WeightLog[], 
-  bodyConditionLogs: BodyConditionLog[] 
-}) => (
-  <View style={styles.table}>
-    <Text style={styles.tableHeader}>Recent Logs</Text>
-    {weightLogs.map((log, index) => (
-      <View key={index} style={styles.tableRow}>
-        <Text>Weight: {log.weight}kg</Text>
-        <Text>Date: {new Date(log.date).toLocaleDateString()}</Text>
-      </View>
-    ))}
-  </View>
-);
-
 const HealthStatus = ({ pet }: { pet: Pet }) => (
   <View style={styles.healthStatus}>
     <Text style={styles.tableHeader}>Health Status</Text>
@@ -103,13 +71,16 @@ export const SingleProfileScreen: React.FC<Props> = ({ route }) => {
     latestBodyConditionLog: null,
     latestWeightLog: null,
   });
+  const tabs = ['Weight Logs', 'Body Condition', 'Vet Visits'];
+  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
     const fetchPet = async () => {
       try {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setPet(mockPet);
+        const { data, error } = await supabase.from('pets').select<string, Pet>(`*,logs_weight:weight_logs(*),logs_bodycondition:body_condition_logs(*),logs_vet_visits:vet_visit_logs(*)`).eq('id', id).maybeSingle();
+        if (error) {
+          error.message
+        } else setPet(data);
       } finally {
         setLoading(false);
       }
@@ -138,24 +109,25 @@ export const SingleProfileScreen: React.FC<Props> = ({ route }) => {
 
   return (
     <ScrollView style={styles.container}>
-      <PetCard pet={pet} />
-      
-      <View style={styles.monthSummary}>
-        <Text style={styles.tableHeader}>This Month's Summary</Text>
-        <Text>
-          Latest Weight: {thisMonthLogs.latestWeightLog?.weight || 'No data'} kg
-        </Text>
-        <Text>
-          Body Condition: {thisMonthLogs.latestBodyConditionLog?.body_condition || 'No data'}
-        </Text>
+      <View style={styles.contentWrapper}>
+        <PetCard pet={pet} />
+        <View style={styles.monthSummary}>
+          <Text style={styles.tableHeader}>This Month's Summary</Text>
+          <Text>
+            Latest Weight: {thisMonthLogs.latestWeightLog?.weight || 'No data'} kg
+          </Text>
+          <Text>
+            Body Condition: {thisMonthLogs.latestBodyConditionLog?.body_condition || 'No data'}
+          </Text>
+        </View>
+        <HealthStatus pet={pet} />
+        <CustomTab tabs={tabs} onTabPress={setActiveTab} />
+        <ScrollView scrollEnabled={false} horizontal contentContainerStyle={styles.tabContentWrapper}>
+          {
+            activeTab == 0 ? <WeightLogs weightLogs={pet.logs_weight} /> : activeTab == 1 ? <BodyCondition bodyConditionLogs={pet.logs_bodycondition} /> : <VetVisits vetVisitLogs={pet.logs_vet_visits!} />
+          }
+        </ScrollView>
       </View>
-
-      <HealthStatus pet={pet} />
-      
-      <LogsTable 
-        weightLogs={pet.logs_weight} 
-        bodyConditionLogs={pet.logs_bodycondition} 
-      />
     </ScrollView>
   );
 };
@@ -166,6 +138,14 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#fff',
   },
+  contentWrapper:{
+    flexDirection: 'column',
+    gap: 16
+  },
+  tabContentWrapper:{
+    width:'100%',
+    padding: 10
+  },
   loader: {
     flex: 1,
     justifyContent: 'center',
@@ -175,7 +155,6 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
-    marginBottom: 16,
   },
   name: {
     fontSize: 24,
@@ -201,12 +180,10 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#e6f3ff',
     borderRadius: 8,
-    marginBottom: 16,
   },
   healthStatus: {
     padding: 16,
     backgroundColor: '#f0fff0',
     borderRadius: 8,
-    marginBottom: 16,
   },
 }); 
