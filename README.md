@@ -121,3 +121,7 @@ Modify the pet profile screen to include:
 - Include error handling and loading states
 - Consider edge cases and data validation
 - Focus on code quality and user experience 
+
+## Installed Dependencies From My Side
+- @supabase/supabase-js for supabase integration
+- react-native-dotenv for handling environment variables

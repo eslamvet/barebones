@@ -64,6 +64,7 @@ export const SingleProfileScreen: React.FC<Props> = ({ route }) => {
   const { id } = route.params;
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('')
   const [thisMonthLogs, setThisMonthLogs] = useState<{
     latestBodyConditionLog: BodyConditionLog | null;
     latestWeightLog: WeightLog | null;
@@ -77,9 +78,10 @@ export const SingleProfileScreen: React.FC<Props> = ({ route }) => {
   useEffect(() => {
     const fetchPet = async () => {
       try {
-        const { data, error } = await supabase.from('pets').select<string, Pet>(`*,logs_weight:weight_logs(*),logs_bodycondition:body_condition_logs(*),logs_vet_visits:vet_visit_logs(*)`).eq('id', id).maybeSingle();
+        //get pet info by id with all related data if there is no record with this id it will return null
+        const { data, error } = await supabase.from('pets').select<string, Pet>(`*,logs_weight:weight_logs(*),logs_bodycondition:body_condition_logs(*),logs_vet_visits:vet_visit_logs(*)`).eq('id', id).maybeSingle(); 
         if (error) {
-          error.message
+          setError(error.message)
         } else setPet(data);
       } finally {
         setLoading(false);
@@ -97,6 +99,14 @@ export const SingleProfileScreen: React.FC<Props> = ({ route }) => {
 
   if (loading) {
     return <ActivityIndicator style={styles.loader} />;
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
   }
 
   if (!pet) {
@@ -137,6 +147,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#fff',
+  },
+  errorText:{
+    textAlign: 'center',
+    color:'red'
   },
   contentWrapper:{
     flexDirection: 'column',
